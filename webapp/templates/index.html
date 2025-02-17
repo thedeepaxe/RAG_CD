@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run Script</title>
+    <script>
+        function runScript() {
+            fetch('/run-script', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('output').innerText = data.output || data.error;
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Execute Script</h1>
+    <button onclick="runScript()">Run Script</button>
+    <pre id="output"></pre>
+</body>
+</html>
