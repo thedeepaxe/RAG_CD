@@ -3,20 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Run Script</title>
-    <script>
-        function runScript() {
-            fetch('/run-script', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('output').innerText = data.output || data.error;
-            });
+    <title>AWS Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
         }
-    </script>
+        .output {
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: scroll;
+            background-color: #f7f7f7;
+        }
+        #instance-ip {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Execute Script</h1>
-    <button onclick="runScript()">Run Script</button>
-    <pre id="output"></pre>
+    <h1>AWS Manager</h1>
+
+    <button id="start-btn">Start Terraform Apply</button>
+    <button id="destroy-btn">Destroy Infrastructure</button>
+
+    <div class="output" id="output-area">
+        Waiting for output...
+    </div>
+
+    <div>
+        <h3>Time Since Action Started:</h3>
+        <p id="time-elapsed">Not started</p>
+    </div>
+
+    <div id="instance-ip">
+        <h3>EC2 Instance IP:</h3>
+        <p id="ip-address">N/A</p>
+    </div>
+
+    <script>
+        let startTime = null;
+        let timerInterval = null;
+        let stateCheckInterval = null;
+
+        // Function to update the time since start
+        function updateTimeElapsed() {
+            if (startTime === null) return;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('time-elapsed').textContent = `${minutes} min ${seconds} sec`;
+        }
+
+        // Function to check Terraform state for EC2 instance details
+        function checkTerraformState() {
+            fetch('/state')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ec2_instance) {
+                        document.getElementById('ip-address').textContent = data.ec2_instance.public_ip || "N/A";
+                    } else {
+                        document.getElementById('ip-address').textContent = "N/A"; // If instance is destroyed, reset
+                    }
+                })
+                .catch(error => console.error("Error checking state:", error));
+        }
+
+        // Start polling Terraform state continuously
+        function startPollingState() {
+            if (stateCheckInterval) clearInterval(stateCheckInterval); // Avoid multiple intervals
+            stateCheckInterval = setInterval(checkTerraformState, 5000); // Check every 5 seconds
+        }
+
+        // Start Terraform Apply
+        document.getElementById('start-btn').addEventListener('click', function () {
+            document.getElementById('output-area').textContent = "Running Terraform apply...\n";
+            document.getElementById('ip-address').textContent = "N/A";
+
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimeElapsed, 1000);
+
+            fetch('/start', { method: 'POST' })
+                .then(response => response.body)
+                .then(stream => {
+                    const reader = stream.getReader();
+                    const decoder = new TextDecoder();
+                    const outputArea = document.getElementById('output-area');
+
+                    function readStream() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) return;
+                            const decoded = decoder.decode(value, { stream: true });
+                            outputArea.textContent += decoded;
+                            outputArea.scrollTop = outputArea.scrollHeight;
+                            readStream();
+                        });
+                    }
+
+                    readStream();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("An error occurred while running Terraform.");
+                });
+
+            // Start continuously polling Terraform state
+            startPollingState();
+        });
+
+        // Destroy Infrastructure
+        document.getElementById('destroy-btn').addEventListener('click', function () {
+            document.getElementById('output-area').textContent = "Running Terraform destroy...\n";
+            document.getElementById('ip-address').textContent = "N/A";
+
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimeElapsed, 1000);
+
+            fetch('/destroy', { method: 'POST' })
+                .then(response => response.body)
+                .then(stream => {
+                    const reader = stream.getReader();
+                    const decoder = new TextDecoder();
+                    const outputArea = document.getElementById('output-area');
+
+                    function readStream() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) return;
+                            const decoded = decoder.decode(value, { stream: true });
+                            outputArea.textContent += decoded;
+                            outputArea.scrollTop = outputArea.scrollHeight;
+
+                            if (decoded.includes("Infrastructure destroyed")) {
+                                document.getElementById('ip-address').textContent = "N/A";
+                            }
+
+                            readStream();
+                        });
+                    }
+
+                    readStream();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("An error occurred while destroying the infrastructure.");
+                });
+
+            // Continue polling even after destroy (to detect if instance is removed)
+            startPollingState();
+        });
+
+        // Start polling immediately on page load (useful if instance was already created)
+        startPollingState();
+    </script>
 </body>
 </html>

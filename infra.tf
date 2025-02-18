@@ -20,3 +20,8 @@ resource "aws_instance" "RAG" {
     Name = "AnsibleManagedEC2"
   }
 }
+
+output "instance_ip" {
+  value = aws_instance.RAG.public_ip
+  description = "Public IP address of the EC2 instance"
+}

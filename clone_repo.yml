@@ -1,0 +1,61 @@
+---
+- name: Clone Git Repository
+  hosts: rag  # This refers to the group or individual host defined in your inventory
+  become: yes  # If you need sudo privileges to install Git or access the directory
+  tasks:
+    - name: Ensure git is installed
+      apt:
+        name: git
+        state: present
+      become: yes  # Ensure it's run as root (necessary for installing packages)
+      when: ansible_os_family == "Debian" 
+
+
+    - name: add github ssh key
+      copy: >
+        src=~/.ssh/rag_github_key
+        dest=/home/ubuntu/.ssh/rag_github_key
+        owner=ubuntu  
+        group=ubuntu
+        mode=0600
+  
+  
+    - name: clone repo
+      ansible.builtin.shell:
+        cmd: GIT_SSH_COMMAND="ssh -i /home/ubuntu/.ssh/rag_github_key  -o StrictHostKeyChecking=no" git clone git@github.com:edgar-mauny/ProCom-RAG.git
+        chdir: /home/ubuntu
+
+        
+    - name: Update and upgrade APT packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+      become: yes
+
+    - name: Ensure Docker is installed
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker Compose is installed
+      apt:
+        name: docker-compose
+        state: present
+      when: ansible_os_family == "Debian"
+
+    # - name: Copy Docker Compose file
+    #   copy:
+    #     src: ./docker-compose.yml  # Ensure this file exists in your playbook directory
+    #     dest: /home/youruser/docker-compose.yml  # Adjust path as necessary
+    #     owner: youruser
+    #     group: youruser
+    #     mode: "0644"
+
+    - name: Start Docker Compose services
+      command: docker-compose up -d
+      args:
+        chdir: /home/ubuntu/ProCom-RAG
+
+    # - name: Ensure services are running
+    #   command: docker ps
