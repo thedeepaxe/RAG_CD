@@ -4,7 +4,7 @@ from flask import Flask, render_template, jsonify, Response
 
 app = Flask(__name__)
 
-TERRAFORM_DIR = "/Users/karimfeki/Desktop/IMT/FiseA3/ProCOM/RAG_dev/RAG_CD"  # Change this path if needed
+TERRAFORM_DIR = "/home/ubuntu/RAG_dev/RAG_CD"  # Change this path if needed
 terraform_process = None  # Store the running Terraform process
 
 # Function to run Terraform apply
