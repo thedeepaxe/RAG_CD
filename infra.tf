@@ -9,13 +9,23 @@ resource "aws_instance" "RAG" {
   key_name      = "Karim_key"                 # Use your actual key pair
   security_groups = ["default"]
 
-  provisioner "local-exec" {
-    command = "echo ${self.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=$HOME/.ssh/Karim_key.pem >> inventory && sleep 10"
-  }
-  provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory clone_repo.yml"
+  # provisioner "local-exec" {
+  #   command = "echo ${self.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=$HOME/.ssh/Karim_key.pem >> inventory && sleep 10"
+  # }
+  # # provisioner "local-exec" {
+  # #   command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory clone_repo.yml"
+  # # }
+  provisioner "file" {
+    source      = "vm_script.sh"
+    destination = "/tmp/script.sh"
   }
 
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/script.sh",
+      "/tmp/script.sh",
+    ]
+  }
   tags = {
     Name = "AnsibleManagedEC2"
   }
