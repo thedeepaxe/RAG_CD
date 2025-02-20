@@ -8,7 +8,12 @@ resource "aws_instance" "RAG" {
   }
   key_name      = "Karim_key"                 # Use your actual key pair
   security_groups = ["default"]
-
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"  # Change based on your AMI (e.g., "ec2-user" for Amazon Linux)
+    private_key = file("~/.ssh/Karim_key.pem")  # Ensure correct path to your private key
+    host        = self.public_ip
+  }
   # provisioner "local-exec" {
   #   command = "echo ${self.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=$HOME/.ssh/Karim_key.pem >> inventory && sleep 10"
   # }
