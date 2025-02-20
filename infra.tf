@@ -34,7 +34,7 @@ resource "aws_instance" "RAG" {
 #   tags = {
 #     Name = "AnsibleManagedEC2"
 #   }
-# }
+}
 
 output "instance_ip" {
   value = aws_instance.RAG.public_ip
